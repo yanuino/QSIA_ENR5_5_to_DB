@@ -1,6 +1,7 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QTextStream>
+#include <QtSql>
 
 int main(int argc, char *argv[])
 {
@@ -21,6 +22,22 @@ int main(int argc, char *argv[])
 
     QByteArray outData;
     QTextStream out(&outData, QIODevice::ReadWrite);
+
+    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
+    db.setDatabaseName("enr5_5.db");
+
+    if (!db.open())
+        //return db.lastError();
+        exit(1000);
+
+    QStringList tables = db.tables();
+    if (!tables.contains("enr", Qt::CaseInsensitive))
+    {
+        QSqlQuery q;
+        if (!q.exec(QLatin1String("create table enr(id varchar not null, activity varchar, name varchar, geo_lat real, geo_long real, dist_ver_upper varchar, dist_ver_lower varchar)")))
+            //return q.lastError();
+            exit(1001);
+    }
 
     // CLEANNING
 
@@ -137,6 +154,15 @@ int main(int argc, char *argv[])
 
     while ( (l1 = tempData.indexOf("CODE_DIST_VER_UPPER-TXT_NAME-VAL_DIST_VER_UPPER-UOM_DIST_VER_UPPER-TXT_RMK_WORK_HR-NOM_USUEL", l1)) >= 0)
     {
+        ID = "";
+        Activity = "";
+        Name = "";
+        DIST_VER_UPPER = "";
+
+        GEO_LAT = "";
+        GEO_LONG = "";
+        DIST_VER_LOWER = "";
+
         l1 = l1 + QString("CODE_DIST_VER_UPPER-TXT_NAME-VAL_DIST_VER_UPPER-UOM_DIST_VER_UPPER-TXT_RMK_WORK_HR-NOM_USUEL").size();
 
         eol1 = tempData.indexOf("</tr>", l1);
@@ -153,6 +179,7 @@ int main(int argc, char *argv[])
             ligne2 = tempData.mid(l2 , eol2 - l2 ).simplified();
 
             // DECODE
+            int borne = -1;
             deb = fin = 0;
             deb = ligne1.indexOf("TXT_NAME", deb);
             deb = ligne1.indexOf(">", deb);
@@ -168,9 +195,13 @@ int main(int argc, char *argv[])
 
             deb = ligne1.indexOf("NOM_USUEL", deb);
             deb = ligne1.indexOf(">", deb);
+            borne = ligne1.indexOf("</td>", deb);
             fin = ligne1.indexOf("</span", deb);
-            deb = deb + 1;
-            Name = ligne1.mid(deb, fin - deb);
+            if ( fin < borne)
+            {
+                deb = deb + 1;
+                Name = ligne1.mid(deb, fin - deb);
+            }
 
             deb = ligne1.indexOf("UOM_DIST_VER_UPPER", deb);
             deb = ligne1.indexOf(">", deb);
@@ -215,41 +246,6 @@ int main(int argc, char *argv[])
             out << "Error!" << endl;
         }
     }
-
-    /*
-     * <tr id="mid--1562507-1569074--CODE_DIST_VER_UPPER-TXT_NAME-VAL_DIST_VER_UPPER-UOM_DIST_VER_UPPER-TXT_RMK_WORK_HR-NOM_USUEL"  ><td>
-                <span id="gaixm--1562507--16388575--AIRSPACE.TXT_NAME" >200</span>
-              </td><td>
-                <span >parachutage</span>
-                <span id="gaixm--1569074--7650653--AIRSPACE_BORDER.NOM_USUEL" >LILLE MARCQ EN BAROEUL Aérodrome (59)</span>
-              </td><td>
-                <br />
-                <span id="gaixm--1562507--16388575--AIRSPACE.VAL_DIST_VER_UPPER-AIRSPACE.CODE_DIST_VER_UPPER-AIRSPACE.UOM_DIST_VER_UPPER" >FL 140</span>
-              </td><td>
-                <span id="gaixm--1562507--16388575--AIRSPACE.TXT_RMK_WORK_HR" >SR-SS+30.</span>
-              </td></tr><tr id="mid--1562507-1569074--GEO_LAT-VAL_DIST_VER_LOWER-UOM_DIST_VER_LOWER-GEO_LONG-TXT_RMK_NAT-CODE_DIST_VER_LOWER--1"  ><td colspan="2"   >
-                <span id="gaixm--1569074--7650653--AIRSPACE_VERTEX.GEO_LAT" >50°41'17"N</span>
-                ,
-                <span id="gaixm--1569074--7650653--AIRSPACE_VERTEX.GEO_LONG" >003°04'36"E</span>
-              </td><td>
-                <span id="gaixm--1562507--16388575--AIRSPACE.VAL_DIST_VER_LOWER-AIRSPACE.UOM_DIST_VER_LOWER-AIRSPACE.CODE_DIST_VER_LOWER" >SFC</span>
-              </td><td>
-                <span />
-                <span id="gaixm--1562507--16388575--AIRSPACE.TXT_RMK_NAT" >
-                  Information des usagers sur A/A MARCQ et LILLE APP/FIS.
-                  <br />
-                  Activité réservée aux usagers signataires du protocole.
-                  <br />
-                  Users' information on A/A MARCQ and LILLE APP/FIS.
-                  <br />
-                  Activity reserved for signatory users to the protocol.
-                </span>
-              </td></tr>
-     *
-     *
-     */
-
-
 
     outfile.write(outData);
 
