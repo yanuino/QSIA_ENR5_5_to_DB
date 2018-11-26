@@ -185,13 +185,13 @@ int main(int argc, char *argv[])
             deb = ligne1.indexOf(">", deb);
             deb = deb + 1;
             fin = ligne1.indexOf("</span", deb);
-            ID = ligne1.mid(deb, fin - deb);
+            ID = ligne1.mid(deb, fin - deb).simplified();
 
             deb = ligne1.indexOf("<span", deb);
             deb = ligne1.indexOf(">", deb);
             deb = deb + 1;
             fin = ligne1.indexOf("</span", deb);
-            Activity = ligne1.mid(deb, fin - deb);
+            Activity = ligne1.mid(deb, fin - deb).simplified();
 
             deb = ligne1.indexOf("NOM_USUEL", deb);
             deb = ligne1.indexOf(">", deb);
@@ -200,43 +200,82 @@ int main(int argc, char *argv[])
             if ( fin < borne)
             {
                 deb = deb + 1;
-                Name = ligne1.mid(deb, fin - deb);
+                Name = ligne1.mid(deb, fin - deb).simplified();
             }
 
             deb = ligne1.indexOf("UOM_DIST_VER_UPPER", deb);
             deb = ligne1.indexOf(">", deb);
             deb = deb + 1;
             fin = ligne1.indexOf("</span", deb);
-            DIST_VER_UPPER = ligne1.mid(deb, fin - deb);
+            DIST_VER_UPPER = ligne1.mid(deb, fin - deb).simplified();
 
             deb = fin = 0;
             deb = ligne2.indexOf("GEO_LAT", deb);
             deb = ligne2.indexOf(">", deb);
             deb = deb + 1;
             fin = ligne2.indexOf("</span", deb);
-            GEO_LAT = ligne2.mid(deb, fin - deb);
+            GEO_LAT = ligne2.mid(deb, fin - deb).simplified();
 
             deb = ligne2.indexOf("GEO_LONG", deb);
             deb = ligne2.indexOf(">", deb);
             deb = deb + 1;
             fin = ligne2.indexOf("</span", deb);
-            GEO_LONG = ligne2.mid(deb, fin - deb);
+            GEO_LONG = ligne2.mid(deb, fin - deb).simplified();
 
             deb = ligne2.indexOf("CODE_DIST_VER_LOWER", deb);
             deb = ligne2.indexOf(">", deb);
             deb = deb + 1;
             fin = ligne2.indexOf("</span", deb);
-            DIST_VER_LOWER = ligne2.mid(deb, fin - deb);
+            DIST_VER_LOWER = ligne2.mid(deb, fin - deb).simplified();
 
+            // CONVERT
+            float geo_lat_h, geo_lat_m, geo_lat_s, geo_lat = 0.0f;
+            QRegExp rxlat("(^\\d+)°(\\d+)'(\\d+)\"([NS])$");
+            int poslat = rxlat.indexIn(GEO_LAT);
+            if (poslat > -1) {
+                geo_lat_h = rxlat.cap(1).toFloat();
+                geo_lat_m = rxlat.cap(2).toFloat();
+                geo_lat_s = rxlat.cap(3).toFloat();
+                geo_lat = geo_lat_h + geo_lat_m / 60.0f + geo_lat_s / 3600.0f;
+                int dummy= static_cast<int>(geo_lat*100000.0f);
+                geo_lat = static_cast<float>(dummy/100000.0f);
+            }
+
+            float geo_long_h, geo_long_m, geo_long_s, geo_long = 0.0f;
+            QRegExp rxlong("(^\\d+)°(\\d+)'(\\d+)\"([EW])$");
+            int poslong = rxlong.indexIn(GEO_LONG);
+            if (poslong > -1) {
+                geo_long_h = rxlong.cap(1).toFloat();
+                geo_long_m = rxlong.cap(2).toFloat();
+                geo_long_s = rxlong.cap(3).toFloat();
+                geo_long = geo_long_h + geo_long_m / 60.0f + geo_long_s / 3600.0f;
+                int dummy= static_cast<int>(geo_long*100000.0f);
+                geo_long = static_cast<float>(dummy/100000.0f);
+            }
+
+            out.setRealNumberPrecision(8);
             out << ID << ','
                 << Activity << ','
                 << Name << ','
-                << GEO_LAT << ','
-                << GEO_LONG << ','
+                << GEO_LAT << ',' << geo_lat << ','
+                << GEO_LONG << ',' << geo_long << ','
                 << DIST_VER_LOWER << ','
                 << DIST_VER_UPPER
                 << endl;
-
+            if ( Activity == "aéromodélisme")
+            {
+                QSqlQuery qins;
+                qins.prepare("INSERT INTO enr (id , activity , name , geo_lat , geo_long , dist_ver_upper , dist_ver_lower)"
+                             "VALUES (:id , :activity , :name , :geo_lat , :geo_long , :dist_ver_upper , :dist_ver_lower)");
+                qins.bindValue(":id", ID);
+                qins.bindValue(":activity", Activity);
+                qins.bindValue(":name", Name);
+                qins.bindValue(":geo_lat", geo_lat);
+                qins.bindValue(":geo_long", geo_long);
+                qins.bindValue(":dist_ver_lower", DIST_VER_LOWER);
+                qins.bindValue(":dist_ver_upper", DIST_VER_UPPER);
+                qins.exec();
+            }
             // JUMP
             //l1 = eol2;
         }
