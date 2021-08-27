@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     if (!tables.contains("enr", Qt::CaseInsensitive))
     {
         QSqlQuery q;
-        if (!q.exec(QLatin1String("create table enr(id varchar not null, activity varchar, name varchar, geo_lat real, geo_long real, dist_ver_upper varchar, dist_ver_lower varchar)")))
+        if (!q.exec(QLatin1String("create table enr(id varchar unique not null, activity varchar, name varchar, geo_lat real, geo_long real, dist_ver_upper varchar, dist_ver_max varchar, dist_ver_lower varchar)")))
             //return q.lastError();
             exit(1001);
     }
@@ -124,14 +124,14 @@ int main(int argc, char *argv[])
      * Fin de ligne 2:
      * - </tr>
      */
-    QString ID;
+    QString Id;
     QString Activity;
     QString Name;
-    QString DIST_VER_UPPER;
-
-    QString GEO_LAT;
-    QString GEO_LONG;
-    QString DIST_VER_LOWER;
+    QString Dist_Ver_Upper;
+    QString Dist_Ver_Max;
+    QString Geo_Lat;
+    QString Geo_Long;
+    QString Dist_Ver_Lower;
 
 
     QString ligne1, ligne2;
@@ -154,14 +154,15 @@ int main(int argc, char *argv[])
 
     while ( (l1 = tempData.indexOf("CODE_DIST_VER_UPPER-TXT_NAME-VAL_DIST_VER_UPPER-UOM_DIST_VER_UPPER-TXT_RMK_WORK_HR-NOM_USUEL", l1)) >= 0)
     {
-        ID = "";
+        Id = "";
         Activity = "";
         Name = "";
-        DIST_VER_UPPER = "";
+        Dist_Ver_Upper = "";
+        Dist_Ver_Max = "";
 
-        GEO_LAT = "";
-        GEO_LONG = "";
-        DIST_VER_LOWER = "";
+        Geo_Lat = "";
+        Geo_Long = "";
+        Dist_Ver_Lower = "";
 
         l1 = l1 + QString("CODE_DIST_VER_UPPER-TXT_NAME-VAL_DIST_VER_UPPER-UOM_DIST_VER_UPPER-TXT_RMK_WORK_HR-NOM_USUEL").size();
 
@@ -185,7 +186,7 @@ int main(int argc, char *argv[])
             deb = ligne1.indexOf(">", deb);
             deb = deb + 1;
             fin = ligne1.indexOf("</span", deb);
-            ID = ligne1.mid(deb, fin - deb).simplified();
+            Id = ligne1.mid(deb, fin - deb).simplified();
 
             deb = ligne1.indexOf("<span", deb);
             deb = ligne1.indexOf(">", deb);
@@ -207,31 +208,40 @@ int main(int argc, char *argv[])
             deb = ligne1.indexOf(">", deb);
             deb = deb + 1;
             fin = ligne1.indexOf("</span", deb);
-            DIST_VER_UPPER = ligne1.mid(deb, fin - deb).simplified();
+            Dist_Ver_Upper = ligne1.mid(deb, fin - deb).simplified();
+
+            int debmax = ligne1.indexOf("CODE_DIST_VER_MAX", deb);
+            if (debmax > -1)
+            {
+                deb = ligne1.indexOf(">", debmax);
+                deb = deb + 1;
+                fin = ligne1.indexOf("</span", deb);
+                Dist_Ver_Max = ligne1.mid(deb, fin - deb).simplified();
+            }
 
             deb = fin = 0;
             deb = ligne2.indexOf("GEO_LAT", deb);
             deb = ligne2.indexOf(">", deb);
             deb = deb + 1;
             fin = ligne2.indexOf("</span", deb);
-            GEO_LAT = ligne2.mid(deb, fin - deb).simplified();
+            Geo_Lat = ligne2.mid(deb, fin - deb).simplified();
 
             deb = ligne2.indexOf("GEO_LONG", deb);
             deb = ligne2.indexOf(">", deb);
             deb = deb + 1;
             fin = ligne2.indexOf("</span", deb);
-            GEO_LONG = ligne2.mid(deb, fin - deb).simplified();
+            Geo_Long = ligne2.mid(deb, fin - deb).simplified();
 
             deb = ligne2.indexOf("CODE_DIST_VER_LOWER", deb);
             deb = ligne2.indexOf(">", deb);
             deb = deb + 1;
             fin = ligne2.indexOf("</span", deb);
-            DIST_VER_LOWER = ligne2.mid(deb, fin - deb).simplified();
+            Dist_Ver_Lower = ligne2.mid(deb, fin - deb).simplified();
 
             // CONVERT
             float geo_lat_h, geo_lat_m, geo_lat_s, geo_lat = 0.0f;
             QRegExp rxlat("(^\\d+)°(\\d+)'(\\d+)\"([NS])$");
-            int poslat = rxlat.indexIn(GEO_LAT);
+            int poslat = rxlat.indexIn(Geo_Lat);
             if (poslat > -1) {
                 geo_lat_h = rxlat.cap(1).toFloat();
                 geo_lat_m = rxlat.cap(2).toFloat();
@@ -243,7 +253,7 @@ int main(int argc, char *argv[])
 
             float geo_long_h, geo_long_m, geo_long_s, geo_long = 0.0f;
             QRegExp rxlong("(^\\d+)°(\\d+)'(\\d+)\"([EW])$");
-            int poslong = rxlong.indexIn(GEO_LONG);
+            int poslong = rxlong.indexIn(Geo_Long);
             if (poslong > -1) {
                 geo_long_h = rxlong.cap(1).toFloat();
                 geo_long_m = rxlong.cap(2).toFloat();
@@ -254,26 +264,27 @@ int main(int argc, char *argv[])
             }
 
             out.setRealNumberPrecision(8);
-            out << ID << ','
+            out << Id << ','
                 << Activity << ','
                 << Name << ','
-                << GEO_LAT << ',' << geo_lat << ','
-                << GEO_LONG << ',' << geo_long << ','
-                << DIST_VER_LOWER << ','
-                << DIST_VER_UPPER
+                << Geo_Lat << ',' << geo_lat << ','
+                << Geo_Long << ',' << geo_long << ','
+                << Dist_Ver_Lower << ','
+                << Dist_Ver_Upper
                 << endl;
-            if ( Activity == "aéromodélisme")
+            if ( true ) //( Activity == "aéromodélisme")
             {
                 QSqlQuery qins;
-                qins.prepare("INSERT INTO enr (id , activity , name , geo_lat , geo_long , dist_ver_upper , dist_ver_lower)"
-                             "VALUES (:id , :activity , :name , :geo_lat , :geo_long , :dist_ver_upper , :dist_ver_lower)");
-                qins.bindValue(":id", ID);
+                qins.prepare("INSERT INTO enr (id , activity , name , geo_lat , geo_long , dist_ver_upper, dist_ver_max , dist_ver_lower)"
+                             "VALUES (:id , :activity , :name , :geo_lat , :geo_long , :dist_ver_upper, :dist_ver_max , :dist_ver_lower)");
+                qins.bindValue(":id", Id);
                 qins.bindValue(":activity", Activity);
                 qins.bindValue(":name", Name);
                 qins.bindValue(":geo_lat", geo_lat);
                 qins.bindValue(":geo_long", geo_long);
-                qins.bindValue(":dist_ver_lower", DIST_VER_LOWER);
-                qins.bindValue(":dist_ver_upper", DIST_VER_UPPER);
+                qins.bindValue(":dist_ver_lower", Dist_Ver_Lower);
+                qins.bindValue(":dist_ver_max", Dist_Ver_Max);
+                qins.bindValue(":dist_ver_upper", Dist_Ver_Upper);
                 qins.exec();
             }
             // JUMP
